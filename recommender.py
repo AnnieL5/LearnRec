@@ -1,94 +1,93 @@
 """
 recommender.py
 --------------
-Turns a user query + video list into ranked recommendations using embeddings.
+Semantic ranking for ANY LearningResource — videos, courses, articles, or docs.
 
-How it works (high level):
-1. Convert text into numeric vectors (embeddings) with sentence-transformers.
-2. Compare the query vector to each video vector with cosine similarity.
-3. Higher similarity = better match → return the top 5 videos.
+Pipeline (same for all resource types):
+    1. Turn query + each resource into text → embeddings (sentence-transformers)
+    2. Cosine similarity scores how close each resource is to the query
+    3. Return the top_k highest-scoring resources
 """
-
-from typing import Any
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Model name on Hugging Face — small, fast, good for beginners
+from schemas import LearningResource, RankedLearningResource
+
 MODEL_NAME = "all-MiniLM-L6-v2"
 
-# Load once when the module is imported (avoids reloading on every request)
 _model: SentenceTransformer | None = None
 
 
 def get_model() -> SentenceTransformer:
-    """Lazy-load the embedding model so startup stays fast."""
+    """Lazy-load the embedding model (downloaded once, ~80 MB)."""
     global _model
     if _model is None:
-        # SentenceTransformer downloads the model on first use (~80 MB)
         _model = SentenceTransformer(MODEL_NAME)
     return _model
 
 
-def _video_to_text(video: dict[str, Any]) -> str:
+def _resource_to_text(resource: LearningResource) -> str:
     """
-    Combine title and description into one string for embedding.
+    Build one string per resource for the embedding model.
 
-    The model sees one piece of text per video; joining fields
-    gives it more context than the title alone.
+    Including tags and difficulty helps the model match queries like
+    "beginner Python tutorial" even when those words aren't in the title.
     """
-    title = video.get("title", "")
-    description = video.get("description", "")
-    return f"{title}. {description}".strip()
+    tags = ", ".join(resource.tags) if resource.tags else ""
+    parts = [
+        resource.title,
+        resource.description,
+        f"Type: {resource.resource_type}",
+        f"Source: {resource.source}",
+        f"Difficulty: {resource.difficulty}",
+    ]
+    if tags:
+        parts.append(f"Tags: {tags}")
+    return ". ".join(parts)
 
 
-def rank_videos(
+def rank_resources(
     query: str,
-    videos: list[dict[str, Any]],
+    resources: list[LearningResource],
     top_k: int = 5,
-) -> list[dict[str, Any]]:
+) -> list[RankedLearningResource]:
     """
-    Rank videos by semantic similarity to the user's learning query.
+    Rank a merged list of resources by semantic similarity to the query.
 
     Args:
-        query: Student's question or topic (e.g. "how do for loops work in Python").
-        videos: List from youtube_fetcher.fetch_videos().
-        top_k: How many recommendations to return (default 5).
+        query: Student's learning question or topic.
+        resources: Combined output from all fetchers (YouTube, courses, articles…).
+        top_k: Number of recommendations to return (default 5).
 
     Returns:
-        Same video dicts, sorted best-first, each with an extra "similarity_score"
-        field (0 to 1, higher = more relevant).
+        Top RankedLearningResource objects sorted best-first.
     """
-    if not videos:
+    if not resources:
         return []
 
     model = get_model()
-
-    # --- Step 1: Build text lists ---
-    # One string for the query, one per video
     query_text = query.strip()
-    video_texts = [_video_to_text(v) for v in videos]
+    resource_texts = [_resource_to_text(r) for r in resources]
 
-    # --- Step 2: Embeddings ---
-    # encode() turns each sentence into a vector (e.g. length 384 for MiniLM)
-    # normalize_embeddings=True makes cosine similarity = dot product of vectors
+    # Embeddings: text → numeric vectors (384 dimensions for MiniLM)
     query_embedding = model.encode([query_text], normalize_embeddings=True)
-    video_embeddings = model.encode(video_texts, normalize_embeddings=True)
+    resource_embeddings = model.encode(resource_texts, normalize_embeddings=True)
 
-    # --- Step 3: Cosine similarity ---
-    # cosine_similarity compares one query vector to all video vectors at once
-    # Result shape: (1, num_videos) — one score per video
-    scores = cosine_similarity(query_embedding, video_embeddings)[0]
+    # Cosine similarity: 1.0 = identical meaning, 0.0 = unrelated
+    scores = cosine_similarity(query_embedding, resource_embeddings)[0]
 
-    # --- Step 4: Sort by score (highest first) ---
-    # argsort gives indices that would sort ascending; [::-1] reverses to descending
     ranked_indices = np.argsort(scores)[::-1]
 
-    recommendations: list[dict[str, Any]] = []
+    recommendations: list[RankedLearningResource] = []
     for index in ranked_indices[:top_k]:
-        video = dict(videos[index])  # copy so we don't mutate the original
-        video["similarity_score"] = round(float(scores[index]), 4)
-        recommendations.append(video)
+        base = resources[index]
+        recommendations.append(
+            RankedLearningResource(
+                **base.model_dump(),
+                similarity_score=round(float(scores[index]), 4),
+            )
+        )
 
     return recommendations

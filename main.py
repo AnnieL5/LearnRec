@@ -1,36 +1,41 @@
 """
 main.py
 -------
-FastAPI app for the AI Study Resource Recommender.
+FastAPI app for the multi-source AI Study Resource Recommender.
 
 Run locally:
     uvicorn main:app --reload
 
-Then open: http://127.0.0.1:8000/docs  (interactive API docs)
+Interactive docs: http://127.0.0.1:8000/docs
+
+Optional env var (for YouTube videos):
+    YOUTUBE_API_KEY=your_key_here
+
+Articles and courses work without any API key.
 """
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from recommender import rank_videos
-from youtube_fetcher import fetch_videos
+from aggregator import fetch_all_resources
+from recommender import rank_resources
+from schemas import RankedLearningResource
 
-# Load variables from a .env file if present (e.g. YOUTUBE_API_KEY)
 load_dotenv()
 
 app = FastAPI(
     title="Study Resource Recommender",
-    description="Recommends educational YouTube videos using semantic search.",
-    version="1.0.0",
+    description=(
+        "Recommends videos, courses, articles, and documentation "
+        "using semantic search across multiple sources."
+    ),
+    version="2.0.0",
 )
 
 
-# --- Request / response shapes (Pydantic validates JSON for us) ---
-
-
 class RecommendRequest(BaseModel):
-    """What the client sends in the POST body."""
+    """JSON body for POST /recommend."""
 
     query: str = Field(
         ...,
@@ -39,70 +44,66 @@ class RecommendRequest(BaseModel):
         examples=["Explain recursion in Python for beginners"],
         description="What the student wants to learn",
     )
-
-
-class VideoRecommendation(BaseModel):
-    """One recommended video in the response."""
-
-    video_id: str
-    title: str
-    description: str
-    url: str
-    similarity_score: float = Field(
-        ...,
-        description="0–1 score; higher means closer match to the query",
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="How many recommendations to return",
     )
 
 
 class RecommendResponse(BaseModel):
-    """Full API response."""
+    """JSON response with ranked resources from all sources."""
 
     query: str
-    recommendations: list[VideoRecommendation]
-
-
-# --- Routes ---
+    total_candidates: int = Field(
+        ...,
+        description="How many resources were merged before ranking",
+    )
+    sources_fetched: dict[str, int] = Field(
+        ...,
+        description="Count per fetcher (youtube, courses, articles)",
+    )
+    recommendations: list[RankedLearningResource]
 
 
 @app.get("/")
 def root() -> dict[str, str]:
-    """Simple health check — confirms the server is running."""
-    return {"message": "Study Resource Recommender is running. Try POST /recommend"}
+    """Health check."""
+    return {
+        "message": "Multi-source Study Resource Recommender is running.",
+        "try": "POST /recommend",
+    }
 
 
 @app.post("/recommend", response_model=RecommendResponse)
 def recommend(request: RecommendRequest) -> RecommendResponse:
     """
-    Main endpoint: accept a learning query, return top 5 YouTube videos.
+    Recommend the best learning resources for a query.
 
     Pipeline:
-        1. Fetch candidate videos from YouTube
-        2. Embed query + video text with sentence-transformers
-        3. Rank by cosine similarity
-        4. Return top 5
+        1. aggregator  — fetch + merge from YouTube, courses, articles/docs
+        2. recommender — embed query + resources, rank by cosine similarity
+        3. return top_k results (mixed types: video, course, article, documentation)
     """
     query = request.query.strip()
 
-    try:
-        videos = fetch_videos(query)
-    except ValueError as exc:
-        # Missing API key or YouTube returned an error message
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Could not reach YouTube API: {exc}",
-        ) from exc
+    resources, source_counts = fetch_all_resources(query)
 
-    if not videos:
+    if not resources:
         raise HTTPException(
             status_code=404,
-            detail="No videos found for that query. Try different wording.",
+            detail=(
+                "No resources found. Check your internet connection "
+                "or try a different query."
+            ),
         )
 
-    ranked = rank_videos(query, videos, top_k=5)
+    ranked = rank_resources(query, resources, top_k=request.top_k)
 
     return RecommendResponse(
         query=query,
-        recommendations=[VideoRecommendation(**video) for video in ranked],
+        total_candidates=len(resources),
+        sources_fetched=source_counts,
+        recommendations=ranked,
     )
