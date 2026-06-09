@@ -1,0 +1,256 @@
+/* Color palette */
+:root {
+  --navy: #324879;
+  --sage: #99b7a9;
+  --gray: #e1e2e1;
+  --beige: #f7f5f0;
+  --white: #ffffff;
+  --text: #2c2c2c;
+  --text-muted: #5a5a5a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--beige);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+/* Header */
+.header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid var(--gray);
+}
+
+.header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-label {
+  font-weight: 500;
+  color: var(--navy);
+  font-size: 0.9rem;
+}
+
+.textarea {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--gray);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+  background: var(--white);
+  transition: border-color 0.15s;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--sage);
+}
+
+.textarea:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.submit-btn {
+  align-self: flex-start;
+  padding: 0.65rem 1.25rem;
+  background: var(--navy);
+  color: var(--white);
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--gray);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error */
+.error {
+  margin-top: 1.5rem;
+  padding: 0.85rem 1rem;
+  background: #fff5f5;
+  border: 1px solid #e8b4b4;
+  border-radius: 8px;
+  color: #8b3a3a;
+  font-size: 0.9rem;
+}
+
+/* Parsed profile summary */
+.parsed-profile {
+  margin-top: 2rem;
+  padding: 1rem 1.25rem;
+  background: var(--white);
+  border: 1px solid var(--gray);
+  border-radius: 8px;
+}
+
+.parsed-profile h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--navy);
+}
+
+.parsed-profile ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.parsed-profile li {
+  margin-bottom: 0.25rem;
+}
+
+/* Results */
+.results {
+  margin-top: 2rem;
+}
+
+.results h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  color: var(--navy);
+}
+
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Recommendation card */
+.card {
+  padding: 1.25rem;
+  background: var(--white);
+  border: 1px solid var(--gray);
+  border-radius: 8px;
+  border-left: 4px solid var(--sage);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.card-rank {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.card-type {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  background: var(--gray);
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+
+.card-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.card-description {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.card-source,
+.card-explanation {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.label {
+  display: inline-block;
+  font-weight: 600;
+  color: var(--navy);
+  margin-right: 0.35rem;
+}
+
+.card-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--navy);
+  text-decoration: none;
+}
+
+.card-link:hover {
+  text-decoration: underline;
+}

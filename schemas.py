@@ -49,12 +49,28 @@ class LearningResource(BaseModel):
     )
 
 
+class ScoreBreakdown(BaseModel):
+    """How the final recommendation score was calculated (all values 0–1)."""
+
+    semantic: float = Field(..., description="Meaning match via embeddings")
+    difficulty: float = Field(..., description="Fit for learner experience level")
+    learning_style: float = Field(..., description="Match for preferred learning style")
+    topic: float = Field(..., description="Overlap between interests and resource topics")
+
+
 class RankedLearningResource(LearningResource):
-    """A resource after semantic ranking — includes the similarity score."""
+    """A resource after multi-factor ranking."""
 
     similarity_score: float = Field(
         ...,
         ge=0.0,
         le=1.0,
-        description="Cosine similarity to the query (higher = better match)",
+        description="Semantic cosine similarity (same as score_breakdown.semantic)",
     )
+    final_score: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Weighted combination of all scoring signals",
+    )
+    score_breakdown: ScoreBreakdown

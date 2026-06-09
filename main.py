@@ -3,15 +3,12 @@ main.py
 -------
 FastAPI app for the multi-source AI Study Resource Recommender.
 
+Supports natural-language learner profiles instead of bare keyword queries.
+
 Run locally:
     uvicorn main:app --reload
 
 Interactive docs: http://127.0.0.1:8000/docs
-
-Optional env var (for YouTube videos):
-    YOUTUBE_API_KEY=your_key_here
-
-Articles and courses work without any API key.
 """
 
 from dotenv import load_dotenv
@@ -19,6 +16,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from aggregator import fetch_all_resources
+from profile_parser import LearnerProfile, parse_profile
 from recommender import rank_resources
 from schemas import RankedLearningResource
 
@@ -28,21 +26,29 @@ app = FastAPI(
     title="Study Resource Recommender",
     description=(
         "Recommends videos, courses, articles, and documentation "
-        "using semantic search across multiple sources."
+        "from natural-language learner profiles using semantic search "
+        "and multi-factor scoring."
     ),
-    version="2.0.0",
+    version="3.0.0",
 )
 
 
 class RecommendRequest(BaseModel):
-    """JSON body for POST /recommend."""
+    """
+    JSON body for POST /recommend.
 
-    query: str = Field(
+    Send a sentence describing goals, experience, style, and interests.
+    """
+
+    profile: str = Field(
         ...,
-        min_length=3,
-        max_length=500,
-        examples=["Explain recursion in Python for beginners"],
-        description="What the student wants to learn",
+        min_length=10,
+        max_length=1000,
+        examples=[
+            "I know basic Python and want fast hands-on AI projects.",
+            "I already know calculus and want fast machine learning tutorials.",
+        ],
+        description="Natural-language learner profile",
     )
     top_k: int = Field(
         default=5,
@@ -53,17 +59,11 @@ class RecommendRequest(BaseModel):
 
 
 class RecommendResponse(BaseModel):
-    """JSON response with ranked resources from all sources."""
+    """JSON response with parsed profile and ranked resources."""
 
-    query: str
-    total_candidates: int = Field(
-        ...,
-        description="How many resources were merged before ranking",
-    )
-    sources_fetched: dict[str, int] = Field(
-        ...,
-        description="Count per fetcher (youtube, courses, articles)",
-    )
+    profile: LearnerProfile
+    total_candidates: int
+    sources_fetched: dict[str, int]
     recommendations: list[RankedLearningResource]
 
 
@@ -71,38 +71,39 @@ class RecommendResponse(BaseModel):
 def root() -> dict[str, str]:
     """Health check."""
     return {
-        "message": "Multi-source Study Resource Recommender is running.",
-        "try": "POST /recommend",
+        "message": "Study Resource Recommender with learner profiles is running.",
+        "try": "POST /recommend with a natural-language profile",
     }
 
 
 @app.post("/recommend", response_model=RecommendResponse)
 def recommend(request: RecommendRequest) -> RecommendResponse:
     """
-    Recommend the best learning resources for a query.
+    Recommend learning resources for a natural-language learner profile.
 
     Pipeline:
-        1. aggregator  — fetch + merge from YouTube, courses, articles/docs
-        2. recommender — embed query + resources, rank by cosine similarity
-        3. return top_k results (mixed types: video, course, article, documentation)
+        1. profile_parser  — extract goals, level, style, interests, time
+        2. aggregator      — fetch resources using profile.search_query
+        3. recommender     — semantic + difficulty + style + topic scoring
+        4. return top_k ranked resources with score breakdown
     """
-    query = request.query.strip()
+    learner_profile = parse_profile(request.profile.strip())
 
-    resources, source_counts = fetch_all_resources(query)
+    resources, source_counts = fetch_all_resources(learner_profile.search_query)
 
     if not resources:
         raise HTTPException(
             status_code=404,
             detail=(
                 "No resources found. Check your internet connection "
-                "or try a different query."
+                "or try rephrasing your profile with clearer topics."
             ),
         )
 
-    ranked = rank_resources(query, resources, top_k=request.top_k)
+    ranked = rank_resources(learner_profile, resources, top_k=request.top_k)
 
     return RecommendResponse(
-        query=query,
+        profile=learner_profile,
         total_candidates=len(resources),
         sources_fetched=source_counts,
         recommendations=ranked,
