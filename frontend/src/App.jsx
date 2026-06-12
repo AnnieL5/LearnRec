@@ -33,29 +33,37 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <h1>Study Resource Recommender</h1>
-        <p className="subtitle">
-          Describe your goals, experience, and learning style in plain English.
-        </p>
+      <header className="header accent-block accent-block--blue">
+        <div className="accent-bar" aria-hidden="true" />
+        <div className="accent-content">
+          <h1>Learn Rec</h1>
+          <p className="subtitle">
+            Your personalized study resource recommender.
+          </p>
+        </div>
       </header>
 
       <main className="main">
         <form className="form" onSubmit={handleSubmit}>
-          <label className="form-label" htmlFor="profile">
-            Your learner profile
-          </label>
-          <textarea
-            id="profile"
-            className="textarea"
-            rows={5}
-            value={profile}
-            onChange={(e) => setProfile(e.target.value)}
-            placeholder="e.g. I am new to Python and want hands-on AI projects."
-            disabled={loading}
-            minLength={10}
-            required
-          />
+          <div className="accent-block accent-block--green profile-section">
+            <div className="accent-bar" aria-hidden="true" />
+            <div className="accent-content">
+              <label className="form-label" htmlFor="profile">
+              Describe your goals, experience, and learning style in plain English
+              </label>
+              <textarea
+                id="profile"
+                className="textarea"
+                rows={5}
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                placeholder="e.g. I am new to Python and want hands-on AI projects."
+                disabled={loading}
+                minLength={10}
+                required
+              />
+            </div>
+          </div>
           <button className="submit-btn" type="submit" disabled={loading}>
             {loading ? "Finding resources…" : "Get recommendations"}
           </button>
@@ -72,7 +80,10 @@ function App() {
 
         {parsedProfile && !loading && (
           <section className="parsed-profile">
-            <h2>We understood</h2>
+            <div className="accent-block accent-block--blue section-heading">
+              <div className="accent-bar" aria-hidden="true" />
+              <h2>Based on:</h2>
+            </div>
             <ul>
               <li>
                 <strong>Level:</strong> {parsedProfile.experience_level}
@@ -95,7 +106,10 @@ function App() {
 
         {recommendations.length > 0 && !loading && (
           <section className="results">
-            <h2>Top recommendations</h2>
+            <div className="accent-block accent-block--blue section-heading">
+              <div className="accent-bar" aria-hidden="true" />
+              <h2>Top recommendations</h2>
+            </div>
             <div className="card-list">
               {recommendations.map((rec, index) => (
                 <RecommendationCard
